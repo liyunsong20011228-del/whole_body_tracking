@@ -58,7 +58,7 @@ class K1FlatWoStateEstimationEnvCfg(K1FlatEnvCfg):
 
 
 @configclass
-class K1FlatLowFreqEnvCfg(K1FlatEnvCfg):
+class K1FlatLowFreqEnvCfg(K1FlatWoStateEstimationEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.decimation = round(self.decimation / LOW_FREQ_SCALE)

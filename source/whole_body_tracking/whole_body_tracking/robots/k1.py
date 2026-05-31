@@ -1,92 +1,12 @@
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
-K1_URDF_PATH = "/home/liyunsong/RL_project/GMR/assets/booster_k1/K1_22dof.urdf"
+from whole_body_tracking.robots import actuator
+from whole_body_tracking.robots.actuator import BoosterDelayedPDActuatorCfg
 
-LEG_NATURAL_FREQ = 4.0 * 2.0 * 3.1415926535
-ARM_NATURAL_FREQ = 10.0 * 2.0 * 3.1415926535
-HEAD_NATURAL_FREQ = 10.0 * 2.0 * 3.1415926535
 
-LEG_DAMPING_RATIO = 1.5
-KNEE_DAMPING_RATIO = 1.0
-ARM_DAMPING_RATIO = 2.0
-HEAD_DAMPING_RATIO = 2.0
+K1_URDF_PATH = "/home/liyunsong/RL_project/booster_assets/robots/K1/K1_22dof.urdf"
 
-K1_ARMATURE = {
-    ".*_Hip_Pitch": 0.0478125,
-    ".*_Hip_Roll": 0.0339552,
-    ".*_Hip_Yaw": 0.0282528,
-    ".*_Knee_Pitch": 0.095625,
-    ".*_Ankle_Pitch": 0.0565056,
-    ".*_Ankle_Roll": 0.0565056,
-    ".*_Shoulder_Pitch": 0.001,
-    ".*_Shoulder_Roll": 0.001,
-    ".*_Elbow_Pitch": 0.001,
-    ".*_Elbow_Yaw": 0.001,
-    ".*Head.*": 0.001,
-}
-
-K1_EFFORT_LIMIT = {
-    ".*_Hip_Pitch": 68.0,
-    ".*_Hip_Roll": 76.0,
-    ".*_Hip_Yaw": 38.3,
-    ".*_Knee_Pitch": 112.0,
-    ".*_Ankle_Pitch": 38.3,
-    ".*_Ankle_Roll": 38.3,
-    ".*_Shoulder_Pitch": 14.0,
-    ".*_Shoulder_Roll": 14.0,
-    ".*_Elbow_Pitch": 14.0,
-    ".*_Elbow_Yaw": 14.0,
-    ".*Head.*": 6.0,
-}
-
-K1_VELOCITY_LIMIT = {
-    ".*_Hip_Pitch": 14.66,
-    ".*_Hip_Roll": 12.57,
-    ".*_Hip_Yaw": 17.59,
-    ".*_Knee_Pitch": 12.57,
-    ".*_Ankle_Pitch": 17.59,
-    ".*_Ankle_Roll": 17.59,
-    ".*_Shoulder_Pitch": 33.51,
-    ".*_Shoulder_Roll": 33.51,
-    ".*_Elbow_Pitch": 33.51,
-    ".*_Elbow_Yaw": 33.51,
-    ".*Head.*": 7.85,
-}
-
-K1_NATURAL_FREQ = {
-    ".*_Hip_Pitch": LEG_NATURAL_FREQ,
-    ".*_Hip_Roll": LEG_NATURAL_FREQ,
-    ".*_Hip_Yaw": LEG_NATURAL_FREQ,
-    ".*_Knee_Pitch": LEG_NATURAL_FREQ,
-    ".*_Ankle_Pitch": LEG_NATURAL_FREQ,
-    ".*_Ankle_Roll": LEG_NATURAL_FREQ,
-    ".*_Shoulder_Pitch": ARM_NATURAL_FREQ,
-    ".*_Shoulder_Roll": ARM_NATURAL_FREQ,
-    ".*_Elbow_Pitch": ARM_NATURAL_FREQ,
-    ".*_Elbow_Yaw": ARM_NATURAL_FREQ,
-    ".*Head.*": HEAD_NATURAL_FREQ,
-}
-
-K1_DAMPING_RATIO = {
-    ".*_Hip_Pitch": LEG_DAMPING_RATIO,
-    ".*_Hip_Roll": LEG_DAMPING_RATIO,
-    ".*_Hip_Yaw": LEG_DAMPING_RATIO,
-    ".*_Knee_Pitch": KNEE_DAMPING_RATIO,
-    ".*_Ankle_Pitch": LEG_DAMPING_RATIO,
-    ".*_Ankle_Roll": LEG_DAMPING_RATIO,
-    ".*_Shoulder_Pitch": ARM_DAMPING_RATIO,
-    ".*_Shoulder_Roll": ARM_DAMPING_RATIO,
-    ".*_Elbow_Pitch": ARM_DAMPING_RATIO,
-    ".*_Elbow_Yaw": ARM_DAMPING_RATIO,
-    ".*Head.*": HEAD_DAMPING_RATIO,
-}
-
-K1_STIFFNESS = {name: K1_ARMATURE[name] * K1_NATURAL_FREQ[name] ** 2 for name in K1_ARMATURE}
-K1_DAMPING = {
-    name: 2.0 * K1_DAMPING_RATIO[name] * K1_ARMATURE[name] * K1_NATURAL_FREQ[name] for name in K1_ARMATURE
-}
 
 K1_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
@@ -120,29 +40,74 @@ K1_CFG = ArticulationCfg(
     ),
     soft_joint_pos_limit_factor=0.9,
     actuators={
-        "joints": ImplicitActuatorCfg(
+        "legs": BoosterDelayedPDActuatorCfg(
+            min_delay=2,
+            max_delay=8,
             joint_names_expr=[
                 ".*_Hip_Pitch",
                 ".*_Hip_Roll",
                 ".*_Hip_Yaw",
                 ".*_Knee_Pitch",
+            ],
+            booster_joint_cfgs={
+                ".*_Hip_Pitch": actuator.BoosterJointE6408(natural_freq=4.0, damping_ratio=1.5),
+                ".*_Hip_Roll": actuator.BoosterJointE4315(natural_freq=4.0, damping_ratio=1.5),
+                ".*_Hip_Yaw": actuator.BoosterJointE4310(natural_freq=4.0, damping_ratio=1.5),
+                ".*_Knee_Pitch": actuator.BoosterJointE6416(natural_freq=4.0, damping_ratio=1.0),
+            },
+        ),
+        "feet": BoosterDelayedPDActuatorCfg(
+            min_delay=2,
+            max_delay=8,
+            joint_names_expr=[
                 ".*_Ankle_Pitch",
                 ".*_Ankle_Roll",
+            ],
+            booster_joint_cfgs={
+                ".*_Ankle_Pitch": actuator.BoosterK1AnkleParaWrapperCfg(
+                    base_joint_cfg=actuator.BoosterJointE4310(),
+                    serial_index=0,
+                    natural_freq=4.0,
+                    damping_ratio=1.5,
+                ),
+                ".*_Ankle_Roll": actuator.BoosterK1AnkleParaWrapperCfg(
+                    base_joint_cfg=actuator.BoosterJointE4310(),
+                    serial_index=1,
+                    natural_freq=4.0,
+                    damping_ratio=1.5,
+                ),
+            },
+        ),
+        "arms": BoosterDelayedPDActuatorCfg(
+            min_delay=2,
+            max_delay=8,
+            joint_names_expr=[
                 ".*_Shoulder_Pitch",
                 ".*_Shoulder_Roll",
                 ".*_Elbow_Pitch",
                 ".*_Elbow_Yaw",
-                ".*Head.*",
             ],
-            effort_limit_sim=K1_EFFORT_LIMIT,
-            velocity_limit_sim=K1_VELOCITY_LIMIT,
-            stiffness=K1_STIFFNESS,
-            damping=K1_DAMPING,
-            armature=K1_ARMATURE,
+            booster_joint_cfgs=actuator.BoosterJointR14(),
+        ),
+        "head": BoosterDelayedPDActuatorCfg(
+            min_delay=2,
+            max_delay=8,
+            joint_names_expr=[".*Head.*"],
+            booster_joint_cfgs=actuator.BoosterJointHT4438(),
         ),
     },
 )
 
-K1_ACTION_SCALE = {
-    name: 0.25 * K1_EFFORT_LIMIT[name] / K1_STIFFNESS[name] for name in K1_ARMATURE if K1_STIFFNESS[name]
-}
+
+K1_ACTION_SCALE = {}
+for actuator_cfg in K1_CFG.actuators.values():
+    effort_limit = actuator_cfg.effort_limit_sim
+    stiffness = actuator_cfg.stiffness
+    joint_names = actuator_cfg.joint_names_expr
+    if not isinstance(effort_limit, dict):
+        effort_limit = {name: effort_limit for name in joint_names}
+    if not isinstance(stiffness, dict):
+        stiffness = {name: stiffness for name in joint_names}
+    for name in joint_names:
+        if name in effort_limit and name in stiffness and stiffness[name]:
+            K1_ACTION_SCALE[name] = 0.25 * effort_limit[name] / stiffness[name]
